@@ -6,11 +6,13 @@ class WinningModel(nn.Module):
     def __init__(self, num_classes=10):
         super(WinningModel, self).__init__()
         self.features = nn.Sequential(
+            nn.ReLU(),
+            nn.Dropout(p=0.1),
+            nn.ReLU(),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            nn.Conv2d(in_channels=1, out_channels=5, kernel_size=3, padding=1),
-            nn.Conv2d(in_channels=5, out_channels=3, kernel_size=3, padding=2),
-            nn.Conv2d(in_channels=3, out_channels=5, kernel_size=3, padding=2),
+            nn.Dropout(p=0.1),
+            nn.ReLU(),
+            nn.Dropout(p=0.1),
         )
 
         self.classifier = nn.Sequential(
@@ -30,4 +32,4 @@ if __name__ == '__main__':
     dummy_input = torch.randn(1, 1, 28, 28)
     output = model(dummy_input) # Initializes LazyLinear
     print(model)
-    print(f'Output shape: {output.shape} (Expected: [1, {num_classes}])')
+    print(f'Output shape: {output.shape} (Expected: [1, 10])')

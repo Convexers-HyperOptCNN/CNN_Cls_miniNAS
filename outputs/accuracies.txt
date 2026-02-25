@@ -1,7 +1,48 @@
-Best Accuracy: 0.9184
+=========================================
+NAS Search Results - Best Combinations
+=========================================
 
-All Iterations:
-Model 1: 0.6109
-Model 2: 0.8985
-Model 3: 0.9184
-Model 4: 0.7838
+Best Overall Accuracy: 0.8725
+
+All Iterations (Ranked Best to Worst):
+----------------------------------------
+Rank 1 | Accuracy: 0.8725 | Runtime: 171.82s
+Combination:
+  Layer 1: ReLU ()
+  Layer 2: Dropout (rate=0.1)
+  Layer 3: ReLU ()
+  Layer 4: MaxPool2d ()
+  Layer 5: Dropout (rate=0.1)
+  Layer 6: ReLU ()
+  Layer 7: Dropout (rate=0.1)
+  Final MLP Hidden Layer: 0
+----------------------------------------
+Rank 2 | Accuracy: 0.1135 | Runtime: 218.68s
+Combination:
+  Layer 1: ReLU ()
+  Layer 2: ReLU ()
+  Layer 3: MaxPool2d ()
+  Layer 4: Conv2d (channels=5, kernel=3, padding=2)
+  Layer 5: Dropout (rate=0.3)
+  Final MLP Hidden Layer: 50
+----------------------------------------
+Rank 3 | Accuracy: 0.1135 | Runtime: 219.32s
+Combination:
+  Layer 1: Conv2d (channels=3, kernel=2, padding=0)
+  Layer 2: Conv2d (channels=5, kernel=3, padding=2)
+  Layer 3: Conv2d (channels=3, kernel=3, padding=1)
+  Layer 4: ReLU ()
+  Layer 5: ReLU ()
+  Layer 6: Dropout (rate=0.3)
+  Layer 7: MaxPool2d ()
+  Final MLP Hidden Layer: 0
+----------------------------------------
+Rank 4 | Accuracy: 0.1010 | Runtime: 233.51s
+Combination:
+  Layer 1: Dropout (rate=0.1)
+  Layer 2: MaxPool2d ()
+  Layer 3: Conv2d (channels=3, kernel=2, padding=1)
+  Layer 4: Dropout (rate=0.3)
+  Layer 5: ReLU ()
+  Final MLP Hidden Layer: 50
+----------------------------------------

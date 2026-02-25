@@ -16,102 +16,61 @@ def save_model(path: str, model_and_stats: dict):
     with open(code_path, "w") as f:
         f.write(model_and_stats["code"])
         
-    # 2. Save accuracies to .txt
+    # Sort history by accuracy (highest to lowest) to find the best combinations
+    sorted_history = sorted(
+        model_and_stats["history"], 
+        key=lambda x: x["metrics"]["acc_val"], 
+        reverse=True
+    )
+    
+    # --- PRINT TO TERMINAL ---
+    print("\n=========================================")
+    print("🏆 TOP 3 BEST ARCHITECTURE COMBINATIONS 🏆")
+    print("=========================================")
+    for rank, stat in enumerate(sorted_history[:3]): # Print top 3
+        acc = stat['metrics']['acc_val']
+        layers = [layer['type'] for layer in stat['architecture']['layers']]
+        print(f"Rank {rank+1}: Accuracy = {acc:.4f}")
+        print(f"Layers: {' -> '.join(layers)}")
+        print(f"MLP Hidden: {stat['architecture']['last_hid_mlp']}\n")
+        
+    # 2. Save detailed combinations to accuracies.txt
     acc_path = os.path.join(path, "accuracies.txt")
     with open(acc_path, "w") as f:
-        f.write(f"Best Accuracy: {model_and_stats['best_metrics']['acc_val']:.4f}\n\n")
-        f.write("All Iterations:\n")
-        for idx, stat in enumerate(model_and_stats["history"]):
-            f.write(f"Model {idx+1}: {stat['metrics']['acc_val']:.4f}\n")
+        f.write("=========================================\n")
+        f.write("NAS Search Results - Best Combinations\n")
+        f.write("=========================================\n\n")
+        
+        f.write(f"Best Overall Accuracy: {model_and_stats['best_metrics']['acc_val']:.4f}\n\n")
+        
+        f.write("All Iterations (Ranked Best to Worst):\n")
+        f.write("-" * 40 + "\n")
+        
+        for rank, stat in enumerate(sorted_history):
+            f.write(f"Rank {rank+1} | Accuracy: {stat['metrics']['acc_val']:.4f} | Runtime: {stat['metrics']['runtime']:.2f}s\n")
+            f.write("Combination:\n")
+            
+            # Write out the detailed parameters of each layer
+            for i, layer in enumerate(stat["architecture"]["layers"]):
+                layer_details = ", ".join([f"{k}={v}" for k, v in layer.items() if k != "type"])
+                f.write(f"  Layer {i+1}: {layer['type']} ({layer_details})\n")
+                
+            f.write(f"  Final MLP Hidden Layer: {stat['architecture']['last_hid_mlp']}\n")
+            f.write("-" * 40 + "\n")
             
     # 3. Save loss history as images
     loss_dir = os.path.join(path, "loss_histories")
     os.makedirs(loss_dir, exist_ok=True)
     
+    # We use the original history list to keep the "Model 1, Model 2" chronological naming for images
     for idx, stat in enumerate(model_and_stats["history"]):
         plt.figure()
         plt.plot(stat['metrics']['loss_history'], label='Train Loss')
-        plt.title(f"Model {idx+1} Loss History")
+        plt.title(f"Model {idx+1} Loss History\nAcc: {stat['metrics']['acc_val']:.4f}")
         plt.xlabel("Epoch")
         plt.ylabel("Loss")
         plt.legend()
         plt.savefig(os.path.join(loss_dir, f"model_{idx+1}_loss.png"))
         plt.close()
 
-    print(f"Artifacts successfully saved to {path}/")
-
-def generate_pytorch_code(best_arch: dict) -> str:
-    """
-    Translates a dictionary defining a CNN architecture into a string 
-    of valid, executable PyTorch code.
-    """
-    lines = [
-        "import torch",
-        "import torch.nn as nn",
-        "",
-        "class WinningModel(nn.Module):",
-        "    def __init__(self, num_classes=10):",
-        "        super(WinningModel, self).__init__()",
-        "        self.features = nn.Sequential("
-    ]
-    
-    in_channels = 1 # MNIST has 1 color channel (grayscale)
-    layers = best_arch.get("layers", [])
-    
-    # 1. Build the feature extractor (CNN layers)
-    for i, layer in enumerate(layers):
-        l_type = layer["type"]
-        if l_type == "Conv2d":
-            out_c = layer["channels"]
-            k = layer["kernel"]
-            p = layer["padding"]
-            lines.append(f"            nn.Conv2d(in_channels={in_channels}, out_channels={out_c}, kernel_size={k}, padding={p}),")
-            in_channels = out_c # Update input channels for the next layer
-            
-        elif l_type == "MaxPool2d":
-            # Default pool size and stride of 2
-            lines.append(f"            nn.MaxPool2d(kernel_size=2, stride=2),")
-            
-        elif l_type == "ReLU":
-            lines.append(f"            nn.ReLU(),")
-            
-        elif l_type == "Dropout":
-            r = layer.get("rate", 0.5)
-            lines.append(f"            nn.Dropout(p={r}),")
-            
-    lines.append("        )")
-    lines.append("")
-    
-    # 2. Build the classifier head (MLP layers)
-    lines.append("        self.classifier = nn.Sequential(")
-    lines.append("            nn.Flatten(),")
-    
-    # Use LazyLinear to avoid manually calculating the flattened spatial dimensions
-    last_hid = best_arch.get("last_hid_mlp", 0)
-    if last_hid > 0:
-        lines.append(f"            nn.LazyLinear(out_features={last_hid}),")
-        lines.append("            nn.ReLU(),")
-        lines.append(f"            nn.Linear(in_features={last_hid}, out_features=num_classes)")
-    else:
-        # Direct mapping to classes if no hidden MLP layer
-        lines.append("            nn.LazyLinear(out_features=num_classes)")
-        
-    lines.append("        )")
-    lines.append("")
-    
-    # 3. Add the forward pass method
-    lines.append("    def forward(self, x):")
-    lines.append("        x = self.features(x)")
-    lines.append("        x = self.classifier(x)")
-    lines.append("        return x")
-    lines.append("")
-    lines.append("# --- Test the generated model ---")
-    lines.append("if __name__ == '__main__':")
-    lines.append("    model = WinningModel()")
-    lines.append("    # Dummy forward pass (Batch Size 1, 1 Channel, 28x28 Image for MNIST)")
-    lines.append("    dummy_input = torch.randn(1, 1, 28, 28)")
-    lines.append("    output = model(dummy_input) # Initializes LazyLinear")
-    lines.append("    print(model)")
-    lines.append("    print(f'Output shape: {output.shape}')")
-    
-    return "\n".join(lines)
+    print(f"\nArtifacts successfully saved to {path}/")

@@ -1,0 +1,18 @@
+=========================================
+Unit Test Execution Report
+Project: CNN_Cls_miniNAS
+=========================================
+
+test_last_hid_mlp (__main__.TestLayersBasedSearchSpace.test_last_hid_mlp)
+Test that the final MLP hidden layer parameter is valid. ... ok
+test_layer_parameters (__main__.TestLayersBasedSearchSpace.test_layer_parameters)
+Test that layer-specific parameters are properly sampled from the config space. ... ok
+test_no_consecutive_dropouts (__main__.TestLayersBasedSearchSpace.test_no_consecutive_dropouts)
+Crucial Test: Ensures that 'Dropout' is never followed immediately ... ok
+test_valid_layer_count (__main__.TestLayersBasedSearchSpace.test_valid_layer_count)
+Test that the number of generated layers respects the config. ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.003s
+
+OK

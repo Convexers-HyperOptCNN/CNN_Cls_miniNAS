@@ -2,7 +2,7 @@ import argparse
 from utils import io_ops
 from modules.search_space import LayersBased
 from modules.validation_strategy import FullTraining
-from modules.search_strategy import RandomSearch
+from modules.search_strategy import RandomSearch, EvolutionarySearch
 
 def generate_pytorch_code(best_arch: dict, dataset_name="MNIST") -> str:
     """
@@ -39,10 +39,10 @@ def generate_pytorch_code(best_arch: dict, dataset_name="MNIST") -> str:
             current_channels = out_c
             
         elif l_type == "MaxPool2d":
-            lines.append(f"            nn.MaxPool2d(kernel_size=2, stride=2),")
+            lines.append("            nn.MaxPool2d(kernel_size=2, stride=2),")
             
         elif l_type == "ReLU":
-            lines.append(f"            nn.ReLU(),")
+            lines.append("            nn.ReLU(),")
             
         elif l_type == "Dropout":
             r = layer.get("rate", 0.5)
@@ -81,7 +81,8 @@ def generate_pytorch_code(best_arch: dict, dataset_name="MNIST") -> str:
     lines.append(f"    dummy_input = torch.randn(1, {in_channels}, {input_h}, {input_w})")
     lines.append("    output = model(dummy_input) # Initializes LazyLinear")
     lines.append("    print(model)")
-    lines.append("    print(f'Output shape: {output.shape} (Expected: [1, {num_classes}])')")
+    # The double braces {{}} escape the f-string formatting for the generated file
+    lines.append(f"    print(f'Output shape: {{output.shape}} (Expected: [1, {num_classes}])')")
     
     return "\n".join(lines)
 
@@ -96,13 +97,23 @@ def architecture_search(config_path: str):
     space_dict = search_space_impl.define_space(config['SearchSpace'])
     
     print("3. Initializing Validation Strategy...")
-    # The FullTraining validation strategy will handle the actual MNIST dataset loading 
-    # and training loop using the parameters specified in the config.
     val_strategy = FullTraining(config['ValidationStrategy'])
     
     print("4. Executing Architecture Search...")
-    iterations = config['SearchStrategy']['nbr_iterations']
-    search_strategy = RandomSearch(iterations, val_strategy, search_space_impl)
+    strategy_type = config['SearchStrategy']['type']
+    
+    if strategy_type == 'RandomSearch':
+        iterations = config['SearchStrategy']['nbr_iterations']
+        search_strategy = RandomSearch(iterations, val_strategy, search_space_impl)
+        
+    elif strategy_type == 'EvolutionarySearch':
+        pop_size = config['SearchStrategy'].get('population_size', 4)
+        generations = config['SearchStrategy'].get('generations', 3)
+        search_strategy = EvolutionarySearch(pop_size, generations, val_strategy, search_space_impl)
+        
+    else:
+        raise ValueError(f"Unknown SearchStrategy type: {strategy_type}")
+        
     results = search_strategy.generate_architecture(space_dict)
     
     print("\n5. Generating PyTorch Code for MNIST & Saving Outputs...")
@@ -119,7 +130,6 @@ def architecture_search(config_path: str):
     
     # Save the artifacts (images, text file, and the python code file)
     io_ops.save_model("./outputs", model_and_stats)
-    print("Search Complete. Please check the './outputs' directory.")
 
 
 if __name__ == "__main__":
