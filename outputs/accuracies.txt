@@ -1,0 +1,7 @@
+Best Accuracy: 0.9184
+
+All Iterations:
+Model 1: 0.6109
+Model 2: 0.8985
+Model 3: 0.9184
+Model 4: 0.7838
